@@ -7,50 +7,52 @@ import {
   LogOut,
   User,
   Bell,
-  Search,
   Calendar,
   Clock,
   CheckCircle,
   AlertCircle,
-  ArrowRight
+  Shield,
+  MessageSquare,
+  MapPin,
+  ArrowRight,
+  MessageCircle,
+  Search,
 } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from './Router';
-import { supabase, Department, Service, Application } from '../lib/supabase';
+import { supabase, Application } from '../lib/supabase';
+
+const DEPARTMENTS = [
+  { code: 'RTO', name: 'RTO & Transport', icon: Car, iconBg: 'bg-blue-100', iconColor: 'text-blue-600', route: 'citizenRto' as const },
+  { code: 'CivilRevenue', name: 'Civil & Revenue', icon: FileText, iconBg: 'bg-sky-100', iconColor: 'text-sky-600', route: 'citizenCivilRevenue' as const },
+  { code: 'SocialWelfare', name: 'Social Welfare & Grievance', icon: Users, iconBg: 'bg-emerald-100', iconColor: 'text-emerald-600', route: 'citizenSocialWelfare' as const },
+  { code: 'FoodSupplies', name: 'Food & Civil Supplies', icon: MapPin, iconBg: 'bg-orange-100', iconColor: 'text-orange-600', route: 'citizenFoodSupplies' as const },
+  { code: 'CitizenServices', name: 'Citizen Services', icon: Shield, iconBg: 'bg-violet-100', iconColor: 'text-violet-600', route: 'citizenCitizenServices' as const },
+];
 
 export default function Dashboard() {
   const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
-  const [departments, setDepartments] = useState<Department[]>([]);
-  const [services, setServices] = useState<Service[]>([]);
-  const [recentApplications, setRecentApplications] = useState<Application[]>([]);
+  const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
+  const [sidebarActive, setSidebarActive] = useState<'overview' | 'applications' | 'track' | 'complaints' | 'feedback'>('overview');
 
   useEffect(() => {
     if (!user) {
       navigate('login');
       return;
     }
-
-    fetchData();
+    fetchApplications();
   }, [user]);
 
-  const fetchData = async () => {
-    const [deptResult, servicesResult, appsResult] = await Promise.all([
-      supabase.from('departments').select('*').eq('is_active', true).order('name'),
-      supabase.from('services').select('*').eq('is_active', true),
-      supabase
-        .from('applications')
-        .select('*')
-        .eq('user_id', user?.id)
-        .order('created_at', { ascending: false })
-        .limit(5)
-    ]);
-
-    if (deptResult.data) setDepartments(deptResult.data);
-    if (servicesResult.data) setServices(servicesResult.data);
-    if (appsResult.data) setRecentApplications(appsResult.data);
+  const fetchApplications = async () => {
+    const { data } = await supabase
+      .from('applications')
+      .select('*')
+      .eq('user_id', user?.id)
+      .order('created_at', { ascending: false });
+    if (data) setApplications(data);
     setLoading(false);
   };
 
@@ -59,46 +61,43 @@ export default function Dashboard() {
     navigate('landing');
   };
 
-  const getDepartmentIcon = (code: string) => {
-    switch (code) {
-      case 'RCD': return FileText;
-      case 'TLD': return Car;
-      case 'SWGD': return Users;
-      default: return Building2;
-    }
-  };
+  const total = applications.length;
+  const approved = applications.filter(a => a.status === 'approved').length;
+  const inProgress = applications.filter(a => ['submitted', 'under_review'].includes(a.status)).length;
+  const rejected = applications.filter(a => a.status === 'rejected').length;
 
-  const getDepartmentColor = (code: string) => {
-    switch (code) {
-      case 'RCD': return 'blue';
-      case 'TLD': return 'green';
-      case 'SWGD': return 'orange';
-      default: return 'gray';
-    }
-  };
+  const last6Months = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - (5 - i));
+    return d.toLocaleString('en-IN', { month: 'short', year: '2-digit' });
+  });
+  const monthlyData = last6Months.map(month => {
+    const [m, y] = month.split(' ');
+    const count = applications.filter(app => {
+      const appDate = new Date(app.created_at);
+      return appDate.toLocaleString('en-IN', { month: 'short' }) === m && appDate.getFullYear().toString().slice(-2) === y;
+    }).length;
+    return { month, count };
+  });
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'approved': return 'green';
-      case 'rejected': return 'red';
-      case 'under_review': return 'blue';
-      case 'submitted': return 'yellow';
-      default: return 'gray';
-    }
-  };
+  const statusData = [
+    { name: 'Approved', value: approved, color: '#22c55e' },
+    { name: 'In Progress', value: inProgress, color: '#3b82f6' },
+    { name: 'Rejected', value: rejected, color: '#ef4444' },
+    { name: 'Draft', value: applications.filter(a => a.status === 'draft').length, color: '#94a3b8' },
+  ].filter(d => d.value > 0);
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'approved': return CheckCircle;
-      case 'rejected': return AlertCircle;
-      case 'under_review': return Clock;
-      default: return Clock;
-    }
+  const getStatusStyles = (status: string) => {
+    const m: Record<string, { bg: string; text: string }> = {
+      approved: { bg: 'bg-emerald-100', text: 'text-emerald-700' },
+      rejected: { bg: 'bg-red-100', text: 'text-red-700' },
+      under_review: { bg: 'bg-blue-100', text: 'text-blue-700' },
+      submitted: { bg: 'bg-amber-100', text: 'text-amber-700' },
+      draft: { bg: 'bg-slate-100', text: 'text-slate-700' },
+    };
+    return m[status] || { bg: 'bg-slate-100', text: 'text-slate-700' };
   };
-
-  const filteredServices = selectedDepartment
-    ? services.filter(s => s.department_id === selectedDepartment)
-    : services;
+  const StatusIcon = (status: string) => status === 'approved' ? CheckCircle : status === 'rejected' ? AlertCircle : Clock;
 
   if (loading) {
     return (
@@ -112,233 +111,233 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <nav className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-3">
-              <Building2 className="h-7 w-7 text-blue-600" />
-              <span className="text-xl font-bold text-slate-800">e-Governance Portal</span>
+    <div className="min-h-screen bg-slate-50 flex">
+      {/* Sidebar */}
+      <aside className="w-64 bg-white border-r border-slate-200 flex flex-col min-h-screen">
+        <div className="p-4 border-b border-slate-200">
+          <div className="flex items-center space-x-2">
+            <Building2 className="h-7 w-7 text-blue-600" />
+            <span className="font-bold text-slate-800">Seva Portal</span>
+          </div>
+          <p className="text-xs text-slate-500 mt-1">Citizen Dashboard</p>
+        </div>
+        <nav className="flex-1 p-4 space-y-1">
+          <button
+            onClick={() => setSidebarActive('overview')}
+            className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left ${sidebarActive === 'overview' ? 'bg-blue-50 text-blue-700' : 'text-slate-700 hover:bg-slate-50'}`}
+          >
+            <Calendar className="h-5 w-5" />
+            <span className="text-sm font-medium">Overview</span>
+          </button>
+          <button
+            onClick={() => setSidebarActive('applications')}
+            className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left ${sidebarActive === 'applications' ? 'bg-blue-50 text-blue-700' : 'text-slate-700 hover:bg-slate-50'}`}
+          >
+            <FileText className="h-5 w-5" />
+            <span className="text-sm font-medium">My Applications</span>
+          </button>
+          <button
+            onClick={() => navigate('citizenTrackStatus')}
+            className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left text-slate-700 hover:bg-slate-50"
+          >
+            <Search className="h-5 w-5" />
+            <span className="text-sm font-medium">Track Status</span>
+          </button>
+          <button
+            onClick={() => setSidebarActive('complaints')}
+            className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left ${sidebarActive === 'complaints' ? 'bg-blue-50 text-blue-700' : 'text-slate-700 hover:bg-slate-50'}`}
+          >
+            <MessageCircle className="h-5 w-5" />
+            <span className="text-sm font-medium">Complaints & Grievances</span>
+          </button>
+          <button
+            onClick={() => setSidebarActive('feedback')}
+            className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left ${sidebarActive === 'feedback' ? 'bg-blue-50 text-blue-700' : 'text-slate-700 hover:bg-slate-50'}`}
+          >
+            <MessageSquare className="h-5 w-5" />
+            <span className="text-sm font-medium">Feedback</span>
+          </button>
+          <button className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left text-slate-700 hover:bg-slate-50 relative">
+            <Bell className="h-5 w-5" />
+            <span className="text-sm font-medium">Notifications</span>
+            <span className="absolute top-2 right-3 h-2 w-2 bg-red-500 rounded-full"></span>
+          </button>
+        </nav>
+        <div className="p-4 border-t border-slate-200">
+          <div className="flex items-center space-x-3 px-3 py-2">
+            <div className="bg-blue-100 p-2 rounded-lg">
+              <User className="h-5 w-5 text-blue-600" />
             </div>
-
-            <div className="flex items-center space-x-4">
-              <button className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors relative">
-                <Bell className="h-5 w-5" />
-                <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full"></span>
-              </button>
-
-              <div className="flex items-center space-x-3 border-l border-slate-200 pl-4">
-                <div className="text-right">
-                  <p className="text-sm font-semibold text-slate-800">{profile?.full_name}</p>
-                  <p className="text-xs text-slate-500 capitalize">{profile?.role}</p>
-                </div>
-                <div className="bg-blue-100 p-2 rounded-lg">
-                  <User className="h-5 w-5 text-blue-600" />
-                </div>
-              </div>
-
-              <button
-                onClick={handleSignOut}
-                className="flex items-center space-x-2 px-4 py-2 text-slate-700 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors font-medium"
-              >
-                <LogOut className="h-4 w-4" />
-                <span>Logout</span>
-              </button>
+            <div>
+              <p className="text-sm font-semibold text-slate-800">{profile?.full_name}</p>
+              <p className="text-xs text-slate-500">Profile</p>
             </div>
           </div>
         </div>
-      </nav>
+      </aside>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">Welcome back, {profile?.full_name?.split(' ')[0]}</h1>
-          <p className="text-slate-600">Access government services and track your applications</p>
-        </div>
+      {/* Main content */}
+      <div className="flex-1 flex flex-col">
+        <header className="bg-white border-b border-slate-200 h-14 flex items-center justify-between px-6">
+          <h1 className="text-lg font-semibold text-slate-900">
+            Welcome back, {profile?.full_name?.split(' ')[0]}
+          </h1>
+          <button
+            onClick={handleSignOut}
+            className="flex items-center space-x-2 px-4 py-2 text-slate-700 hover:bg-red-50 hover:text-red-600 rounded-lg font-medium"
+          >
+            <LogOut className="h-4 w-4" />
+            <span>Logout</span>
+          </button>
+        </header>
 
-        <div className="grid lg:grid-cols-3 gap-6 mb-8">
-          <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white shadow-lg">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <p className="text-blue-100 text-sm font-medium mb-1">Total Applications</p>
-                <p className="text-3xl font-bold">{recentApplications.length}</p>
-              </div>
-              <div className="bg-white/20 p-3 rounded-lg">
-                <FileText className="h-6 w-6" />
-              </div>
-            </div>
-            <p className="text-sm text-blue-100">All time submissions</p>
-          </div>
-
-          <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 text-white shadow-lg">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <p className="text-green-100 text-sm font-medium mb-1">Approved</p>
-                <p className="text-3xl font-bold">
-                  {recentApplications.filter(app => app.status === 'approved').length}
-                </p>
-              </div>
-              <div className="bg-white/20 p-3 rounded-lg">
-                <CheckCircle className="h-6 w-6" />
-              </div>
-            </div>
-            <p className="text-sm text-green-100">Successfully processed</p>
-          </div>
-
-          <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-6 text-white shadow-lg">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <p className="text-orange-100 text-sm font-medium mb-1">In Progress</p>
-                <p className="text-3xl font-bold">
-                  {recentApplications.filter(app => ['submitted', 'under_review'].includes(app.status)).length}
-                </p>
-              </div>
-              <div className="bg-white/20 p-3 rounded-lg">
-                <Clock className="h-6 w-6" />
-              </div>
-            </div>
-            <p className="text-sm text-orange-100">Under review</p>
-          </div>
-        </div>
-
-        <div className="grid lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 space-y-6">
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-slate-900">Departments</h2>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                  <input
-                    type="text"
-                    placeholder="Search services..."
-                    className="pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
+        <main className="flex-1 p-6 overflow-auto">
+          {(sidebarActive === 'overview' || sidebarActive === 'applications') && (
+            <>
+              {/* Stats row */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                  <p className="text-sm font-medium text-slate-500 mb-1">Total Applied</p>
+                  <p className="text-3xl font-bold text-slate-900">{total}</p>
+                </div>
+                <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                  <p className="text-sm font-medium text-slate-500 mb-1">Approved ✅</p>
+                  <p className="text-3xl font-bold text-emerald-600">{approved}</p>
+                </div>
+                <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                  <p className="text-sm font-medium text-slate-500 mb-1">In Progress 🔄</p>
+                  <p className="text-3xl font-bold text-blue-600">{inProgress}</p>
+                </div>
+                <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                  <p className="text-sm font-medium text-slate-500 mb-1">Rejected</p>
+                  <p className="text-3xl font-bold text-red-600">{rejected}</p>
                 </div>
               </div>
 
-              <div className="space-y-3 mb-6">
-                {departments.map(dept => {
-                  const Icon = getDepartmentIcon(dept.code);
-                  const color = getDepartmentColor(dept.code);
-                  const isSelected = selectedDepartment === dept.id;
-
-                  return (
-                    <button
-                      key={dept.id}
-                      onClick={() => setSelectedDepartment(isSelected ? null : dept.id)}
-                      className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
-                        isSelected
-                          ? `border-${color}-500 bg-${color}-50`
-                          : 'border-slate-200 hover:border-slate-300 bg-white'
-                      }`}
-                    >
-                      <div className="flex items-center space-x-4">
-                        <div className={`p-3 rounded-lg bg-${color}-100`}>
-                          <Icon className={`h-6 w-6 text-${color}-600`} />
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-slate-900">{dept.name}</h3>
-                          <p className="text-sm text-slate-600">{dept.description}</p>
-                        </div>
-                        <ArrowRight className={`h-5 w-5 transition-transform ${isSelected ? 'rotate-90' : ''} text-slate-400`} />
-                      </div>
-                    </button>
-                  );
-                })}
+              {/* Charts */}
+              <div className="grid lg:grid-cols-2 gap-6 mb-8">
+                <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                  <h3 className="text-sm font-semibold text-slate-900 mb-4">Applications (Last 6 Months)</h3>
+                  <div className="h-48">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={monthlyData}>
+                        <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                        <YAxis allowDecimals={false} />
+                        <Tooltip />
+                        <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+                <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                  <h3 className="text-sm font-semibold text-slate-900 mb-4">Status Breakdown</h3>
+                  <div className="h-48">
+                    {statusData.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={statusData}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={40}
+                            outerRadius={70}
+                            paddingAngle={2}
+                            dataKey="value"
+                            nameKey="name"
+                            label={({ name, value }) => `${name}: ${value}`}
+                          >
+                            {statusData.map((entry, i) => (
+                              <Cell key={i} fill={entry.color} />
+                            ))}
+                          </Pie>
+                          <Tooltip />
+                          <Legend />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-slate-400 text-sm">No data yet</div>
+                    )}
+                  </div>
+                </div>
               </div>
 
-              <div className="border-t border-slate-200 pt-6">
-                <h3 className="font-semibold text-slate-900 mb-4">
-                  {selectedDepartment ? 'Available Services' : 'All Services'}
-                </h3>
-                <div className="grid md:grid-cols-2 gap-4">
-                  {filteredServices.map(service => {
-                    const dept = departments.find(d => d.id === service.department_id);
-                    const color = getDepartmentColor(dept?.code || '');
-
+              {/* Department cards */}
+              <div className="mb-8">
+                <h2 className="text-lg font-semibold text-slate-900 mb-4">Departments</h2>
+                <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-4">
+                  {DEPARTMENTS.map(dept => {
+                    const Icon = dept.icon;
                     return (
                       <div
-                        key={service.id}
-                        className="p-4 border border-slate-200 rounded-lg hover:shadow-md transition-all bg-white group cursor-pointer"
+                        key={dept.code}
+                        className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-all group cursor-pointer"
+                        onClick={() => navigate(dept.route)}
                       >
-                        <div className="flex items-start justify-between mb-2">
-                          <h4 className="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">
-                            {service.name}
-                          </h4>
-                          <span className={`text-xs px-2 py-1 bg-${color}-100 text-${color}-700 rounded-full font-medium`}>
-                            {dept?.code}
-                          </span>
+                        <div className={`inline-flex p-3 rounded-lg ${dept.iconBg} mb-4`}>
+                          <Icon className={`h-6 w-6 ${dept.iconColor}`} />
                         </div>
-                        <p className="text-sm text-slate-600 mb-3">{service.description}</p>
-                        <div className="flex items-center justify-between text-xs text-slate-500">
-                          <div className="flex items-center space-x-1">
-                            <Clock className="h-3 w-3" />
-                            <span>{service.processing_days} days</span>
+                        <h3 className="font-semibold text-slate-900 mb-2">{dept.name}</h3>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); navigate(dept.route); }}
+                          className="w-full py-2 px-3 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center justify-center space-x-2"
+                        >
+                          <span>Apply Now</span>
+                          <ArrowRight className="h-4 w-4" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* My Applications (when sidebar active) */}
+              {sidebarActive === 'applications' && (
+                <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+                  <h2 className="text-lg font-semibold text-slate-900 mb-4">My Applications</h2>
+                  {applications.length === 0 ? (
+                    <div className="text-center py-12 text-slate-500">
+                      <Calendar className="h-12 w-12 mx-auto mb-3 text-slate-300" />
+                      <p>No applications yet. Start by selecting a department above.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {applications.map(app => {
+                        const statusStyles = getStatusStyles(app.status);
+                        const Icon = StatusIcon(app.status);
+                        return (
+                          <div key={app.id} className="p-4 border border-slate-200 rounded-lg flex items-center justify-between">
+                            <div>
+                              <p className="font-semibold text-slate-900">{app.application_number}</p>
+                              <p className="text-sm text-slate-500">{new Date(app.created_at).toLocaleDateString('en-IN')}</p>
+                            </div>
+                            <div className={`flex items-center space-x-2 px-3 py-1 rounded-full text-sm font-medium ${statusStyles.bg} ${statusStyles.text}`}>
+                              <Icon className="h-4 w-4" />
+                              {app.status.replace('_', ' ')}
+                            </div>
                           </div>
-                          <span className="font-semibold">₹{service.fee_amount}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-6">
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-              <h2 className="text-xl font-bold text-slate-900 mb-4">Recent Applications</h2>
-
-              {recentApplications.length === 0 ? (
-                <div className="text-center py-8">
-                  <Calendar className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-                  <p className="text-slate-600 text-sm">No applications yet</p>
-                  <p className="text-slate-500 text-xs mt-1">Start by selecting a service</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {recentApplications.map(app => {
-                    const StatusIcon = getStatusIcon(app.status);
-                    const statusColor = getStatusColor(app.status);
-
-                    return (
-                      <div
-                        key={app.id}
-                        className="p-4 border border-slate-200 rounded-lg hover:shadow-md transition-all cursor-pointer"
-                      >
-                        <div className="flex items-start justify-between mb-2">
-                          <p className="font-semibold text-slate-900 text-sm">
-                            {app.application_number}
-                          </p>
-                          <StatusIcon className={`h-4 w-4 text-${statusColor}-600`} />
-                        </div>
-                        <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-${statusColor}-100 text-${statusColor}-700 mb-2`}>
-                          {app.status.replace('_', ' ').toUpperCase()}
-                        </div>
-                        <p className="text-xs text-slate-500">
-                          {new Date(app.created_at).toLocaleDateString('en-IN', {
-                            day: 'numeric',
-                            month: 'short',
-                            year: 'numeric'
-                          })}
-                        </p>
-                      </div>
-                    );
-                  })}
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
+            </>
+          )}
 
-            <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-lg p-6 text-white">
-              <h3 className="font-bold text-lg mb-2">Need Help?</h3>
-              <p className="text-slate-300 text-sm mb-4">
-                Contact our support team for assistance with your applications
-              </p>
-              <button className="w-full bg-white text-slate-900 py-2 rounded-lg hover:bg-slate-100 font-semibold text-sm transition-colors">
-                Contact Support
-              </button>
+          {sidebarActive === 'complaints' && (
+            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+              <h2 className="text-lg font-semibold text-slate-900 mb-4">Complaints & Grievances</h2>
+              <p className="text-slate-500 text-sm">Lodge and track department-specific grievances. (Coming soon)</p>
             </div>
-          </div>
-        </div>
+          )}
+
+          {sidebarActive === 'feedback' && (
+            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+              <h2 className="text-lg font-semibold text-slate-900 mb-4">Feedback</h2>
+              <p className="text-slate-500 text-sm">Star rating and suggestions. (Coming soon)</p>
+            </div>
+          )}
+        </main>
       </div>
     </div>
   );
