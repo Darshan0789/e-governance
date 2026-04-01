@@ -29,6 +29,7 @@ export default function CitizenRto() {
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [appId, setAppId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const handleStartApplication = (service: typeof RTO_SERVICES[0]) => {
     setSelectedService(service);
@@ -40,21 +41,29 @@ export default function CitizenRto() {
   const handleComplete = async () => {
     if (!user || !selectedService) return;
     setSubmitting(true);
+    setSubmitError(null);
     const id = generateAppId();
     const { error } = await supabase.from('applications').insert({
       application_number: id,
       user_id: user.id,
-      service_id: '00000000-0000-0000-0000-000000000000',
       status: 'submitted',
+      applicant_full_name: formData.full_name || formData.name || null,
+      applicant_phone: formData.phone || null,
+      applicant_aadhaar: formData.aadhaar || null,
+      applicant_address: formData.address || null,
+      applicant_dob: formData.dob || null,
       form_data: { serviceName: selectedService.name, ...formData },
       documents: [],
     });
     setSubmitting(false);
     if (error) {
       setAppId(id);
-      alert('Application submitted locally. (DB insert failed: ' + error.message + ')');
+      setSubmitError(error.message);
+      alert('Could not save to Supabase: ' + error.message);
     } else {
       setAppId(id);
+      // Redirect after successful save
+      navigate('dashboard');
     }
   };
 
@@ -69,10 +78,50 @@ export default function CitizenRto() {
             <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
             <input
               type="text"
-              value={formData.name ?? ''}
-              onChange={e => setFormData(d => ({ ...d, name: e.target.value }))}
+              value={formData.full_name ?? ''}
+              onChange={e => setFormData(d => ({ ...d, full_name: e.target.value, name: e.target.value }))}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg"
               placeholder="Enter full name"
+            />
+          </div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Mobile Number</label>
+              <input
+                type="tel"
+                value={formData.phone ?? ''}
+                onChange={e => setFormData(d => ({ ...d, phone: e.target.value }))}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                placeholder="10-digit mobile number"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Date of Birth</label>
+              <input
+                type="date"
+                value={formData.dob ?? ''}
+                onChange={e => setFormData(d => ({ ...d, dob: e.target.value }))}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Aadhaar Number</label>
+            <input
+              type="text"
+              value={formData.aadhaar ?? ''}
+              onChange={e => setFormData(d => ({ ...d, aadhaar: e.target.value }))}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+              placeholder="Enter Aadhaar number"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Address</label>
+            <textarea
+              value={formData.address ?? ''}
+              onChange={e => setFormData(d => ({ ...d, address: e.target.value }))}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg min-h-[90px]"
+              placeholder="Enter full address"
             />
           </div>
           <div>
@@ -98,6 +147,11 @@ export default function CitizenRto() {
             <p className="text-slate-500 text-sm">Drag and drop files here or click to browse</p>
             <input type="file" className="mt-2" multiple disabled />
           </div>
+          {selectedService?.id === 'dl-new' && (
+            <p className="text-sm text-slate-600">
+              <span className="font-semibold text-slate-700">Required Documents:</span> Aadhaar Card, PAN Card, or Voter ID.
+            </p>
+          )}
         </div>
       ),
     },
@@ -197,9 +251,10 @@ export default function CitizenRto() {
           currentStep={step}
           onStepChange={setStep}
           onComplete={handleComplete}
-          canProceed={() => (step === 0 ? !!formData.name : true)}
+          canProceed={() => (step === 0 ? !!(formData.full_name || formData.name) : true)}
         />
         {submitting && <p className="mt-4 text-sm text-slate-500">Submitting...</p>}
+        {submitError && <p className="mt-2 text-sm text-red-600">Save failed: {submitError}</p>}
       </main>
     </div>
   );

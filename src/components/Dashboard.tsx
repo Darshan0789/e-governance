@@ -192,7 +192,7 @@ export default function Dashboard() {
         </header>
 
         <main className="flex-1 p-6 overflow-auto">
-          {(sidebarActive === 'overview' || sidebarActive === 'applications') && (
+          {sidebarActive === 'overview' && (
             <>
               {/* Stats row */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
@@ -289,39 +289,40 @@ export default function Dashboard() {
                   })}
                 </div>
               </div>
+            </>
+          )}
 
-              {/* My Applications (when sidebar active) */}
-              {sidebarActive === 'applications' && (
-                <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
-                  <h2 className="text-lg font-semibold text-slate-900 mb-4">My Applications</h2>
-                  {applications.length === 0 ? (
-                    <div className="text-center py-12 text-slate-500">
-                      <Calendar className="h-12 w-12 mx-auto mb-3 text-slate-300" />
-                      <p>No applications yet. Start by selecting a department above.</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {applications.map(app => {
-                        const statusStyles = getStatusStyles(app.status);
-                        const Icon = StatusIcon(app.status);
-                        return (
-                          <div key={app.id} className="p-4 border border-slate-200 rounded-lg flex items-center justify-between">
-                            <div>
-                              <p className="font-semibold text-slate-900">{app.application_number}</p>
-                              <p className="text-sm text-slate-500">{new Date(app.created_at).toLocaleDateString('en-IN')}</p>
-                            </div>
-                            <div className={`flex items-center space-x-2 px-3 py-1 rounded-full text-sm font-medium ${statusStyles.bg} ${statusStyles.text}`}>
-                              <Icon className="h-4 w-4" />
-                              {app.status.replace('_', ' ')}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
+          {sidebarActive === 'applications' && (
+            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+              <h2 className="text-lg font-semibold text-slate-900 mb-4">My Applications</h2>
+              {applications.length === 0 ? (
+                <div className="text-center py-12 text-slate-500">
+                  <Calendar className="h-12 w-12 mx-auto mb-3 text-slate-300" />
+                  <p>No applications yet. Start by selecting a department from Overview.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {applications.map(app => {
+                    const statusStyles = getStatusStyles(app.status);
+                    const Icon = StatusIcon(app.status);
+                    return (
+                      <div key={app.id} className="p-4 border border-slate-200 rounded-lg flex items-center justify-between">
+                        <div>
+                          <p className="font-semibold text-slate-900">{app.application_number}</p>
+                          <p className="text-sm text-slate-500">
+                            {new Date(app.created_at).toLocaleDateString('en-IN')}
+                          </p>
+                        </div>
+                        <div className={`flex items-center space-x-2 px-3 py-1 rounded-full text-sm font-medium ${statusStyles.bg} ${statusStyles.text}`}>
+                          <Icon className="h-4 w-4" />
+                          {app.status.replace('_', ' ')}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
-            </>
+            </div>
           )}
 
           {sidebarActive === 'complaints' && (

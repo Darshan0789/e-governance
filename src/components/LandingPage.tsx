@@ -56,12 +56,12 @@ export default function LandingPage() {
                 <Users className="h-8 w-8 text-blue-600" />
                 <div>
                   <h3 className="text-lg font-semibold text-slate-900">Citizen</h3>
-                  <p className="text-sm text-slate-600">Apply, track, and manage your applications.</p>
+                  <p className="text-sm text-slate-600">Application, track, and manage your applications.</p>
                 </div>
               </div>
               <button
                 onClick={() => navigate('login')}
-                className="mt-6 w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
+                className="mt-10 w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
               >
                 Citizen Login
               </button>
