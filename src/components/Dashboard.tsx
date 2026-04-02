@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
+import SevaPortalLogo from './SevaPortalLogo';
 import {
-  Building2,
   FileText,
   Car,
   Users,
@@ -115,9 +115,8 @@ export default function Dashboard() {
       {/* Sidebar */}
       <aside className="w-64 bg-white border-r border-slate-200 flex flex-col min-h-screen">
         <div className="p-4 border-b border-slate-200">
-          <div className="flex items-center space-x-2">
-            <Building2 className="h-7 w-7 text-blue-600" />
-            <span className="font-bold text-slate-800">Seva Portal</span>
+          <div className="flex items-center">
+            <SevaPortalLogo variant="compact" />
           </div>
           <p className="text-xs text-slate-500 mt-1">Citizen Dashboard</p>
         </div>

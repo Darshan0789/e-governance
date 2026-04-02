@@ -4,6 +4,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from '../Router';
 import StepWizard, { Step } from '../StepWizard';
 import { supabase } from '../../lib/supabase';
+import ApplicationDocumentUpload from '../ApplicationDocumentUpload';
+import { uploadApplicationDocuments, validateDocumentFiles } from '../../lib/applicationDocuments';
 
 export interface DepartmentService {
   id: string;
@@ -40,6 +42,7 @@ export default function DepartmentPageTemplate({
   const [selectedService, setSelectedService] = useState<DepartmentService | null>(null);
   const [step, setStep] = useState(0);
   const [formData, setFormData] = useState<Record<string, string>>({});
+  const [documentFiles, setDocumentFiles] = useState<File[]>([]);
   const [appId, setAppId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -48,34 +51,55 @@ export default function DepartmentPageTemplate({
     setSelectedService(service);
     setStep(0);
     setFormData({});
+    setDocumentFiles([]);
     setAppId(null);
   };
 
   const handleComplete = async () => {
     if (!user || !selectedService) return;
+    const docErr = validateDocumentFiles(documentFiles);
+    if (docErr) {
+      alert(docErr);
+      return;
+    }
     setSubmitting(true);
     setSubmitError(null);
     const id = generateAppId(deptPrefix);
-    const { error } = await supabase.from('applications').insert({
-      application_number: id,
-      user_id: user.id,
-      status: 'submitted',
-      applicant_full_name: formData.full_name || formData.name || null,
-      applicant_phone: formData.phone || null,
-      applicant_aadhaar: formData.aadhaar || null,
-      applicant_address: formData.address || null,
-      applicant_dob: formData.dob || null,
-      form_data: { serviceName: selectedService.name, department: title, ...formData },
-      documents: [],
-    });
-    setSubmitting(false);
-    if (error) {
-      setAppId(id);
-      setSubmitError(error.message);
-    } else {
-      setAppId(id);
-      // Redirect after successful save
-      navigate('dashboard');
+    let uploaded;
+    try {
+      uploaded = await uploadApplicationDocuments(user.id, id, documentFiles);
+    } catch (e) {
+      const msg = (e as Error).message;
+      setSubmitError(`Document upload failed: ${msg}`);
+      alert(msg);
+      setSubmitting(false);
+      return;
+    }
+    try {
+      const { error } = await supabase.from('applications').insert({
+        application_number: id,
+        user_id: user.id,
+        status: 'submitted',
+        applicant_full_name: formData.full_name || formData.name || null,
+        applicant_phone: formData.phone || null,
+        applicant_aadhaar: formData.aadhaar || null,
+        applicant_address: formData.address || null,
+        applicant_dob: formData.dob || null,
+        form_data: { serviceName: selectedService.name, department: title, ...formData },
+        documents: uploaded,
+      });
+      if (error) {
+        setAppId(id);
+        setSubmitError(`Application save failed: ${error.message}`);
+      } else {
+        setAppId(id);
+        navigate('dashboard');
+      }
+    } catch (e) {
+      setSubmitError(`Application save failed: ${(e as Error).message}`);
+      alert((e as Error).message);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -144,10 +168,7 @@ export default function DepartmentPageTemplate({
       title: 'Documents',
       content: (
         <div className="space-y-4">
-          <p className="text-sm text-slate-600">Upload required documents (mock)</p>
-          <div className="border-2 border-dashed border-slate-200 rounded-lg p-8 text-center">
-            <p className="text-slate-500 text-sm">Document upload placeholder</p>
-          </div>
+          <ApplicationDocumentUpload files={documentFiles} onChange={setDocumentFiles} disabled={submitting} />
         </div>
       ),
     },
@@ -237,7 +258,11 @@ export default function DepartmentPageTemplate({
           currentStep={step}
           onStepChange={setStep}
           onComplete={handleComplete}
-          canProceed={() => (step === 0 ? !!(formData.full_name || formData.name) : true)}
+          canProceed={s => {
+            if (s === 0) return !!(formData.full_name || formData.name);
+            if (s === 1) return documentFiles.length > 0;
+            return true;
+          }}
         />
         {submitting && <p className="mt-4 text-sm text-slate-500">Submitting...</p>}
         {submitError && <p className="mt-2 text-sm text-red-600">Save failed: {submitError}</p>}

@@ -1,5 +1,6 @@
 import { Building2, FileText, Car, Users, Shield, Clock, CheckCircle } from 'lucide-react';
 import { useNavigate } from './Router';
+import SevaPortalLogo from './SevaPortalLogo';
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -9,10 +10,7 @@ export default function LandingPage() {
       <nav className="bg-white shadow-sm sticky top-0 z-50 border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-3">
-              <Building2 className="h-8 w-8 text-blue-600" />
-              <span className="text-xl font-bold text-slate-800">Seva Portal</span>
-            </div>
+            <SevaPortalLogo variant="nav" />
             <div className="flex space-x-4">
               <button
                 onClick={() => navigate('login')}
@@ -37,22 +35,34 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-slate-100 opacity-50"></div>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 relative">
+      <section className="relative overflow-hidden min-h-[480px] md:min-h-[540px]">
+        <div
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{ backgroundImage: "url('/landing-hero-bg.png')" }}
+          aria-hidden
+        />
+        <div
+          className="absolute inset-0 bg-gradient-to-b from-slate-900/50 via-slate-900/40 to-slate-800/70"
+          aria-hidden
+        />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24 relative z-10">
           <div className="text-center mb-12">
-            <h1 className="text-5xl md:text-6xl font-bold text-slate-900 mb-4 leading-tight">
-              Seva Portal
-              <span className="block text-blue-600 mt-2">Digital India Services</span>
+            <div className="flex justify-center mb-6">
+              <div className="bg-white/95 backdrop-blur-sm rounded-2xl px-5 py-3 shadow-lg border border-white/50">
+                <SevaPortalLogo variant="nav" className="mx-auto max-w-[min(90vw,340px)] sm:max-w-[380px] h-10 sm:h-11" />
+              </div>
+            </div>
+            <h1 className="text-4xl md:text-5xl font-bold text-white mb-4 leading-tight drop-shadow-md">
+              <span className="text-blue-200">Digital India Services</span>
             </h1>
-            <p className="text-xl text-slate-600 mb-6 max-w-3xl mx-auto leading-relaxed">
+            <p className="text-xl text-white/90 mb-6 max-w-3xl mx-auto leading-relaxed drop-shadow">
               One unified platform for citizens, officers, and administrators to manage end-to-end government services.
             </p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-6 mb-12">
-            <div className="bg-white/80 backdrop-blur-sm border border-slate-200 rounded-xl p-6 shadow-sm">
-              <div className="flex items-center mb  -4 space-x-3">
+            <div className="bg-white/90 backdrop-blur-md border border-white/40 rounded-xl p-6 shadow-lg">
+              <div className="flex items-center mb-4 space-x-3">
                 <Users className="h-8 w-8 text-blue-600" />
                 <div>
                   <h3 className="text-lg font-semibold text-slate-900">Citizen</h3>
@@ -67,7 +77,7 @@ export default function LandingPage() {
               </button>
             </div>
 
-            <div className="bg-white/80 backdrop-blur-sm border border-slate-200 rounded-xl p-6 shadow-sm">
+            <div className="bg-white/90 backdrop-blur-md border border-white/40 rounded-xl p-6 shadow-lg">
               <div className="flex items-center mb-4 space-x-3">
                 <Shield className="h-8 w-8 text-emerald-600" />
                 <div>
@@ -83,7 +93,7 @@ export default function LandingPage() {
               </button>
             </div>
 
-            <div className="bg-white/80 backdrop-blur-sm border border-slate-200 rounded-xl p-6 shadow-sm">
+            <div className="bg-white/90 backdrop-blur-md border border-white/40 rounded-xl p-6 shadow-lg">
               <div className="flex items-center mb-4 space-x-3">
                 <Building2 className="h-8 w-8 text-indigo-600" />
                 <div>
@@ -236,10 +246,12 @@ export default function LandingPage() {
       <footer className="bg-slate-900 text-slate-300 py-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="flex items-center space-x-3">
-              <Building2 className="h-6 w-6 text-blue-400" />
-              <div>
-                <p className="text-sm font-semibold text-white">Seva Portal — Government of India</p>
+            <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4">
+              <div className="bg-white/10 rounded-xl px-3 py-2 border border-white/10">
+                <SevaPortalLogo variant="compact" className="brightness-0 invert opacity-95 max-w-[200px]" />
+              </div>
+              <div className="text-center md:text-left">
+                <p className="text-sm font-semibold text-white">Government of India</p>
                 <p className="text-xs text-slate-400">A unified digital platform for citizen services.</p>
               </div>
             </div>

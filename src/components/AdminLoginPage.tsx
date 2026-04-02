@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Building2, Lock, LogIn } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from './Router';
+import SevaPortalLogo from './SevaPortalLogo';
 
 export default function AdminLoginPage() {
   const [username, setUsername] = useState('');
@@ -31,8 +32,8 @@ export default function AdminLoginPage() {
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
-            <div className="bg-indigo-600 p-3 rounded-xl">
-              <Building2 className="h-10 w-10 text-white" />
+            <div className="bg-white p-3 rounded-xl shadow-sm border border-slate-100">
+              <SevaPortalLogo variant="auth" />
             </div>
           </div>
           <h1 className="text-3xl font-bold text-slate-900 mb-2">Admin Login</h1>

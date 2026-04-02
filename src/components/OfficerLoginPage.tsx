@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Building2, Lock, LogIn, Users, UserPlus, User } from 'lucide-react';
+import { Building2, Lock, LogIn, UserPlus, User } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from './Router';
 import { supabase } from '../lib/supabase';
+import SevaPortalLogo from './SevaPortalLogo';
 
 export default function OfficerLoginPage() {
   const [mode, setMode] = useState<'login' | 'register'>('login');
@@ -181,8 +182,8 @@ export default function OfficerLoginPage() {
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
-            <div className="bg-emerald-600 p-3 rounded-xl">
-              <Users className="h-10 w-10 text-white" />
+            <div className="bg-white p-3 rounded-xl shadow-sm border border-emerald-100">
+              <SevaPortalLogo variant="auth" />
             </div>
           </div>
           <h1 className="text-3xl font-bold text-slate-900 mb-2">

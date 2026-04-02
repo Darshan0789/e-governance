@@ -4,6 +4,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from '../Router';
 import StepWizard, { Step } from '../StepWizard';
 import { supabase } from '../../lib/supabase';
+import ApplicationDocumentUpload from '../ApplicationDocumentUpload';
+import { uploadApplicationDocuments, validateDocumentFiles } from '../../lib/applicationDocuments';
 
 const RTO_SERVICES = [
   { id: 'dl-new', name: 'Driving License — New Application' },
@@ -27,6 +29,7 @@ export default function CitizenRto() {
   const [selectedService, setSelectedService] = useState<typeof RTO_SERVICES[0] | null>(null);
   const [step, setStep] = useState(0);
   const [formData, setFormData] = useState<Record<string, string>>({});
+  const [documentFiles, setDocumentFiles] = useState<File[]>([]);
   const [appId, setAppId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -35,35 +38,57 @@ export default function CitizenRto() {
     setSelectedService(service);
     setStep(0);
     setFormData({});
+    setDocumentFiles([]);
     setAppId(null);
   };
 
   const handleComplete = async () => {
     if (!user || !selectedService) return;
+    const docErr = validateDocumentFiles(documentFiles);
+    if (docErr) {
+      alert(docErr);
+      return;
+    }
     setSubmitting(true);
     setSubmitError(null);
     const id = generateAppId();
-    const { error } = await supabase.from('applications').insert({
-      application_number: id,
-      user_id: user.id,
-      status: 'submitted',
-      applicant_full_name: formData.full_name || formData.name || null,
-      applicant_phone: formData.phone || null,
-      applicant_aadhaar: formData.aadhaar || null,
-      applicant_address: formData.address || null,
-      applicant_dob: formData.dob || null,
-      form_data: { serviceName: selectedService.name, ...formData },
-      documents: [],
-    });
-    setSubmitting(false);
-    if (error) {
-      setAppId(id);
-      setSubmitError(error.message);
-      alert('Could not save to Supabase: ' + error.message);
-    } else {
-      setAppId(id);
-      // Redirect after successful save
-      navigate('dashboard');
+    let uploaded;
+    try {
+      uploaded = await uploadApplicationDocuments(user.id, id, documentFiles);
+    } catch (e) {
+      const msg = (e as Error).message;
+      setSubmitError(`Document upload failed: ${msg}`);
+      alert(msg);
+      setSubmitting(false);
+      return;
+    }
+    try {
+      const { error } = await supabase.from('applications').insert({
+        application_number: id,
+        user_id: user.id,
+        status: 'submitted',
+        applicant_full_name: formData.full_name || formData.name || null,
+        applicant_phone: formData.phone || null,
+        applicant_aadhaar: formData.aadhaar || null,
+        applicant_address: formData.address || null,
+        applicant_dob: formData.dob || null,
+        form_data: { serviceName: selectedService.name, ...formData },
+        documents: uploaded,
+      });
+      if (error) {
+        setAppId(id);
+        setSubmitError(`Application save failed: ${error.message}`);
+        alert('Could not save application: ' + error.message);
+      } else {
+        setAppId(id);
+        navigate('dashboard');
+      }
+    } catch (e) {
+      const msg = (e as Error).message;
+      setSubmitError(`Application save failed: ${msg}`);
+      alert(msg);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -142,14 +167,10 @@ export default function CitizenRto() {
       title: 'Documents',
       content: (
         <div className="space-y-4">
-          <p className="text-sm text-slate-600">Upload required documents (mock upload)</p>
-          <div className="border-2 border-dashed border-slate-200 rounded-lg p-8 text-center">
-            <p className="text-slate-500 text-sm">Drag and drop files here or click to browse</p>
-            <input type="file" className="mt-2" multiple disabled />
-          </div>
+          <ApplicationDocumentUpload files={documentFiles} onChange={setDocumentFiles} disabled={submitting} />
           {selectedService?.id === 'dl-new' && (
             <p className="text-sm text-slate-600">
-              <span className="font-semibold text-slate-700">Required Documents:</span> Aadhaar Card, PAN Card, or Voter ID.
+              <span className="font-semibold text-slate-700">Typical uploads:</span> Aadhaar, PAN, or address proof (PDF or clear photo).
             </p>
           )}
         </div>
@@ -251,7 +272,11 @@ export default function CitizenRto() {
           currentStep={step}
           onStepChange={setStep}
           onComplete={handleComplete}
-          canProceed={() => (step === 0 ? !!(formData.full_name || formData.name) : true)}
+          canProceed={s => {
+            if (s === 0) return !!(formData.full_name || formData.name);
+            if (s === 1) return documentFiles.length > 0;
+            return true;
+          }}
         />
         {submitting && <p className="mt-4 text-sm text-slate-500">Submitting...</p>}
         {submitError && <p className="mt-2 text-sm text-red-600">Save failed: {submitError}</p>}

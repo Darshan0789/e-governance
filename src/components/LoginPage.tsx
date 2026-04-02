@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Building2, Mail, Lock, LogIn } from 'lucide-react';
+import { Mail, Lock, LogIn } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from './Router';
+import SevaPortalLogo from './SevaPortalLogo';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -31,8 +32,8 @@ export default function LoginPage() {
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
-            <div className="bg-blue-600 p-3 rounded-xl">
-              <Building2 className="h-10 w-10 text-white" />
+            <div className="bg-white p-3 rounded-xl shadow-sm border border-slate-100">
+              <SevaPortalLogo variant="auth" />
             </div>
           </div>
           <h1 className="text-3xl font-bold text-slate-900 mb-2">Welcome Back</h1>
